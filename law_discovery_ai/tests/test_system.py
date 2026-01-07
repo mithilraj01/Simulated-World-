@@ -1,8 +1,8 @@
 import unittest
 import sys
 import os
+import json
 import numpy as np
-import sympy
 
 # Add the parent directory to sys.path to allow imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -10,112 +10,71 @@ parent_dir = os.path.dirname(current_dir)
 sys.path.insert(0, parent_dir)
 
 from simulators.physics_deterministic.free_fall import run_simulator
-from encoder.observation_encoder import encode_observations
-from hypothesis.symbolic_generator import generate_hypotheses
-from falsifier.falsifier import falsify_hypotheses
-from mdl.mdl_selector import select_best_law
+from simulators.physics_stochastic.stochastic_free_fall import run_stochastic_simulator
 
 class TestSimulateDAI(unittest.TestCase):
 
-    def setUp(self):
-        # Common setup if needed
-        pass
+    def test_deterministic_simulator(self):
+        """Verify deterministic simulator output structure and values."""
+        output = run_simulator(time_step=1.0, total_time=2.0, gravity=9.81)
 
-    def test_simulator_structure(self):
-        """Verify simulator output format and deterministic values."""
-        output = run_simulator(time_step=1.0, total_time=2.0)
-
-        self.assertIn("state_variables", output)
+        self.assertEqual(output["world_type"], "deterministic")
         self.assertIn("time_series", output)
-        self.assertIn("ground_truth_law", output)
-        self.assertEqual(output["ground_truth_law"], "x = x0 + v0*t + 0.5*a*t^2")
+        self.assertIsNone(output["noise_model"])
 
-        # Check values for t=0, t=1, t=2 with g=9.81
-        # x = 0 + 0*t + 0.5*(-9.81)*t^2 = -4.905 * t^2
         ts = output["time_series"]
-        self.assertEqual(len(ts), 3)
-
+        # Check simple physics: x = -0.5 * g * t^2
+        # t=0: x=0
+        # t=1: x=-4.905
+        # t=2: x=-4.905 * 4
         self.assertAlmostEqual(ts[0]["position"], 0.0)
         self.assertAlmostEqual(ts[1]["position"], -4.905)
-        self.assertAlmostEqual(ts[2]["position"], -4.905 * 4)
+        self.assertAlmostEqual(ts[2]["position"], -19.62)
 
-    def test_encoder(self):
-        """Verify encoder produces correct matrix."""
-        sim_output = {
-            "state_variables": ["a", "b"],
-            "time_series": [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
-        }
-        encoded = encode_observations(sim_output)
+    def test_stochastic_simulator(self):
+        """Verify stochastic simulator output."""
+        output = run_stochastic_simulator(time_step=1.0, total_time=2.0, noise_std=0.0)
 
-        self.assertEqual(encoded["variables"], ["a", "b"])
-        expected_matrix = np.array([[1, 2], [3, 4]])
-        np.testing.assert_array_equal(encoded["data_matrix"], expected_matrix)
+        self.assertEqual(output["world_type"], "stochastic")
+        self.assertIn("Gaussian", output["noise_model"])
 
-    def test_generator(self):
-        """Verify generator produces expected symbolic forms."""
-        hyps = generate_hypotheses()
-        # We expect 3 hypotheses: Constant, Linear, Quadratic
-        self.assertEqual(len(hyps), 3)
+        # With 0 noise, should match deterministic
+        ts = output["time_series"]
+        self.assertAlmostEqual(ts[1]["position"], -4.905)
 
-        # Check that 'position' and 'time' are in the expressions
-        time = sympy.Symbol('time')
-        position = sympy.Symbol('position')
+    def test_interventions(self):
+        """Verify interventions are applied."""
+        # Intervention: change gravity to 0 at t=1.0
+        interventions = [{"time": 1.0, "parameter": "gravity", "new_value": 0.0}]
+        output = run_simulator(time_step=1.0, total_time=3.0, gravity=10.0, interventions=interventions)
 
-        self.assertTrue(any(h.lhs == position for h in hyps))
-        self.assertTrue(any(time in h.rhs.free_symbols for h in hyps if h.rhs.free_symbols))
+        ts = output["time_series"]
+        # t=0: x=0, v=0, a=-10
+        # t=1: x = 0 + 0 - 0.5*10*1^2 = -5. v = -10. Intervention happens here/after step.
+        # Next step (t=1 to t=2): gravity is 0. a=0.
+        # x = -5 + (-10)*1 + 0 = -15.
+        # v = -10 + 0 = -10.
 
-    def test_falsifier_logic(self):
-        """Verify falsifier correctly fits and filters hypotheses."""
-        # Create synthetic data: y = 2 * t
-        variables = ["position", "time"]
-        # t = 0, 1, 2, 3
-        t_data = np.array([0, 1, 2, 3])
-        y_data = 2 * t_data
+        # Let's check acceleration recorded in logs
+        # t=0 log: a=-10 (initial)
+        # t=1 log: a=-10 (used for step 0->1) OR a=0 (if updated before log?)
+        # My implementation logs state AFTER update loop for t>0.
+        # t=1 log is result of step 0->1.
 
-        data_matrix = np.column_stack([y_data, t_data])
+        # Let's check t=2. Step 1->2 used gravity=0.
+        # So at t=2, acceleration should be 0.
 
-        encoded_data = {
-            "variables": variables,
-            "data_matrix": data_matrix
-        }
+        # Check acceleration at t=2
+        # ts indices: 0->0.0, 1->1.0, 2->2.0
+        acc_at_2 = ts[2]["acceleration"]
+        self.assertEqual(acc_at_2, 0.0)
 
-        time = sympy.Symbol('time')
-        position = sympy.Symbol('position')
-        C0, C1 = sympy.symbols('C0 C1')
-
-        # Hypotheses:
-        # 1. position = C0 (Should fail)
-        # 2. position = C0 + C1 * time (Should pass with C0=0, C1=2)
-
-        h1 = sympy.Eq(position, C0)
-        h2 = sympy.Eq(position, C0 + C1 * time)
-
-        hypotheses = [h1, h2]
-
-        survivors = falsify_hypotheses(encoded_data, hypotheses, tolerance=1e-5)
-
-        self.assertEqual(len(survivors), 1)
-        self.assertEqual(survivors[0]["original_eq"], h2)
-        self.assertAlmostEqual(survivors[0]["mse"], 0.0)
-
-    def test_mdl_selector(self):
-        """Verify MDL selector chooses the simplest low-error hypothesis."""
-        # Mock survivors
-        # H1: simple, low error -> DL low
-        # H2: complex, low error -> DL high
-        # H3: simple, high error -> DL high
-
-        h1 = {"expression": sympy.sympify("x + 1"), "mse": 0.0}
-        h2 = {"expression": sympy.sympify("x**2 + x + 1"), "mse": 0.0}
-
-        # We need to wrap them in a structure expected by select_best_law
-        # Actually select_best_law takes a list of dicts
-
-        result = select_best_law([h1, h2])
-
-        # H1 should be preferred because it has fewer ops
-        self.assertEqual(result["result"], "LAW")
-        self.assertEqual(result["expression"], "x + 1")
+    def test_export_schema(self):
+        """Verify export keys."""
+        output = run_simulator()
+        required_keys = ["world_id", "world_type", "parameters", "state_variables", "time_series", "interventions", "noise_model", "notes"]
+        for key in required_keys:
+            self.assertIn(key, output)
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,47 +1,52 @@
 import sys
 import os
+import json
+import argparse
+import time
 
 # Ensure we can import modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from simulators.physics_deterministic.free_fall import run_simulator
-from encoder.observation_encoder import encode_observations
-from hypothesis.symbolic_generator import generate_hypotheses
-from falsifier.falsifier import falsify_hypotheses
-from mdl.mdl_selector import select_best_law
+from simulators.physics_stochastic.stochastic_free_fall import run_stochastic_simulator
 
 def main():
-    print("--- Phase 1: Simulate World ---")
-    sim_output = run_simulator(time_step=0.1, total_time=5.0, initial_position=0.0, initial_velocity=0.0)
-    print(f"Simulation complete. {len(sim_output['time_series'])} steps generated.")
-    print(f"Ground Truth: {sim_output['ground_truth_law']}")
+    parser = argparse.ArgumentParser(description="SimulateDAI: World Generator")
+    parser.add_argument("--type", choices=["deterministic", "stochastic"], default="deterministic", help="Type of world to simulate")
+    parser.add_argument("--gravity", type=float, default=9.81, help="Gravity constant")
+    parser.add_argument("--noise", type=float, default=0.1, help="Noise std (stochastic only)")
+    parser.add_argument("--interventions", type=str, default=None, help="Path to JSON file with interventions")
 
-    print("\n--- Phase 2: Encode Observations ---")
-    encoded_data = encode_observations(sim_output)
-    print(f"Encoded variables: {encoded_data['variables']}")
-    print(f"Data matrix shape: {encoded_data['data_matrix'].shape}")
+    args = parser.parse_args()
 
-    print("\n--- Phase 3: Generate Hypotheses ---")
-    hypotheses = generate_hypotheses()
-    print(f"Generated {len(hypotheses)} candidates:")
-    for h in hypotheses:
-        print(f"  - {h}")
+    # Load interventions if provided
+    interventions = []
+    if args.interventions:
+        try:
+            with open(args.interventions, 'r') as f:
+                interventions = json.load(f)
+        except Exception as e:
+            print(f"Error loading interventions: {e}")
+            return
 
-    print("\n--- Phase 4: Falsify Hypotheses ---")
-    # Tolerance for float errors (since we use exact math, error should be near 0, but numerical noise exists)
-    survivors = falsify_hypotheses(encoded_data, hypotheses, tolerance=1e-10)
-    print(f"Surviving hypotheses: {len(survivors)}")
+    print(f"Generating {args.type} world...")
 
-    print("\n--- Phase 5: MDL Selection ---")
-    result = select_best_law(survivors)
-
-    print("\n--- FINAL RESULT ---")
-    print(f"Outcome: {result['result']}")
-    if result['result'] == "LAW":
-        print(f"Discovered Law: {result['expression']}")
-        print(f"Description Length: {result['description_length']}")
+    if args.type == "deterministic":
+        world_data = run_simulator(gravity=args.gravity, interventions=interventions)
     else:
-        print("No compact law found.")
+        world_data = run_stochastic_simulator(gravity=args.gravity, noise_std=args.noise, interventions=interventions)
+
+    # Export
+    exports_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "exports")
+    os.makedirs(exports_dir, exist_ok=True)
+
+    filename = f"world_{world_data['world_id']}_{int(time.time())}.json"
+    filepath = os.path.join(exports_dir, filename)
+
+    with open(filepath, 'w') as f:
+        json.dump(world_data, f, indent=2)
+
+    print(f"World generated and exported to {filepath}")
 
 if __name__ == "__main__":
     main()
