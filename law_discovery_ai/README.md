@@ -9,8 +9,8 @@ It is a tool for generating synthetic physical data for external research system
 ## Purpose
 
 The sole purpose of this repository is to:
-1. Simulate physical worlds (deterministic or stochastic).
-2. Log observations (position, velocity, acceleration).
+1. Simulate physical worlds (deterministic, stochastic, or chaotic).
+2. Log observations.
 3. Export standardized JSON data.
 
 ## Supported Worlds
@@ -25,6 +25,13 @@ The sole purpose of this repository is to:
 - Gaussian noise added to acceleration dynamics.
 - Seed-controlled for reproducibility.
 
+### Chaotic Worlds
+- Deterministic logistic map simulator.
+- No stochastic noise is used.
+- Demonstrates sensitivity to initial conditions.
+- No laws or explanations are inferred.
+- Provided for external analysis only.
+
 ## Usage
 
 ### Run Deterministic Simulation
@@ -35,6 +42,11 @@ python3 main.py --type deterministic --gravity 9.81
 ### Run Stochastic Simulation
 ```bash
 python3 main.py --type stochastic --noise 0.5
+```
+
+### Run Chaotic Simulation
+```bash
+python3 main.py --type chaotic --r 3.9 --x0 0.5 --timesteps 50
 ```
 
 ### Apply Interventions

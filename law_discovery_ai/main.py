@@ -9,12 +9,21 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from simulators.physics_deterministic.free_fall import run_simulator
 from simulators.physics_stochastic.stochastic_free_fall import run_stochastic_simulator
+from simulators.physics_chaotic.logistic_map import run_logistic_map
 
 def main():
     parser = argparse.ArgumentParser(description="SimulateDAI: World Generator")
-    parser.add_argument("--type", choices=["deterministic", "stochastic"], default="deterministic", help="Type of world to simulate")
-    parser.add_argument("--gravity", type=float, default=9.81, help="Gravity constant")
+    parser.add_argument("--type", choices=["deterministic", "stochastic", "chaotic"], default="deterministic", help="Type of world to simulate")
+
+    # Physics parameters
+    parser.add_argument("--gravity", type=float, default=9.81, help="Gravity constant (deterministic/stochastic)")
     parser.add_argument("--noise", type=float, default=0.1, help="Noise std (stochastic only)")
+
+    # Chaos parameters
+    parser.add_argument("--r", type=float, default=3.9, help="Control parameter r (chaotic only)")
+    parser.add_argument("--x0", type=float, default=0.5, help="Initial value x0 (chaotic only)")
+    parser.add_argument("--timesteps", type=int, default=100, help="Number of timesteps (chaotic only)")
+
     parser.add_argument("--interventions", type=str, default=None, help="Path to JSON file with interventions")
 
     args = parser.parse_args()
@@ -33,8 +42,10 @@ def main():
 
     if args.type == "deterministic":
         world_data = run_simulator(gravity=args.gravity, interventions=interventions)
-    else:
+    elif args.type == "stochastic":
         world_data = run_stochastic_simulator(gravity=args.gravity, noise_std=args.noise, interventions=interventions)
+    elif args.type == "chaotic":
+        world_data = run_logistic_map(r=args.r, x0=args.x0, timesteps=args.timesteps, interventions=interventions)
 
     # Export
     exports_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "exports")
