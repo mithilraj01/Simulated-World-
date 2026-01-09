@@ -9,7 +9,7 @@ It is a tool for generating synthetic physical data for external research system
 ## Purpose
 
 The sole purpose of this repository is to:
-1. Simulate physical worlds (deterministic, stochastic, chaotic, or biological).
+1. Simulate physical worlds (deterministic, stochastic, chaotic, biological, or liquid).
 2. Log observations.
 3. Export standardized JSON data.
 
@@ -40,6 +40,14 @@ The sole purpose of this repository is to:
 - Used to study discoverability limits under selection and history.
 - **Regime:** Biological (cellular/population scale).
 
+### Liquid / Ocean Column World
+- Phenomenological model of a vertical ocean column.
+- Continuous fields for Temperature, Pressure, and Density.
+- Models diffusion, mechanical pressure, and simple convection.
+- **Regime:** Liquid Continuum (meters/seconds scale).
+- No Navier-Stokes or real fluid dynamics claimed.
+- Used to study explanation limits in field systems.
+
 ## Usage
 
 ### Run Deterministic Simulation
@@ -60,6 +68,11 @@ python3 main.py --type chaotic --r 3.9 --x0 0.5 --timesteps 50
 ### Run Biological Simulation
 ```bash
 python3 main.py --type biological --timesteps 100 --initial_population 20 --grid_size 20
+```
+
+### Run Ocean Simulation
+```bash
+python3 main.py --type ocean --depth_layers 20 --timesteps 100 --surface_temp 25 --bottom_temp 4
 ```
 
 ### Apply Interventions
