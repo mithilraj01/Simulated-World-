@@ -48,6 +48,15 @@ The sole purpose of this repository is to:
 - No Navier-Stokes or real fluid dynamics claimed.
 - Used to study explanation limits in field systems.
 
+### Whole-Ocean Liquid Regime
+- Phenomenological large-scale liquid model (3D: x, y, z).
+- Grid of vertical columns with horizontal transport.
+- Density parameterizes behavior, not substances.
+- Models spatial heterogeneity, diffusion, and transport.
+- **Regime:** Liquid Continuum Extended (planetary scale).
+- Spatial extension worsens reuse, not improves it.
+- No real ocean circulation (Navier-Stokes/Coriolis) claimed.
+
 ## Usage
 
 ### Run Deterministic Simulation
@@ -73,6 +82,11 @@ python3 main.py --type biological --timesteps 100 --initial_population 20 --grid
 ### Run Ocean Simulation
 ```bash
 python3 main.py --type ocean --depth_layers 20 --timesteps 100 --surface_temp 25 --bottom_temp 4
+```
+
+### Run Whole Ocean Simulation
+```bash
+python3 main.py --type whole_ocean --width 10 --height 10 --depth_layers 5 --timesteps 50
 ```
 
 ### Apply Interventions

@@ -12,36 +12,42 @@ from simulators.physics_stochastic.stochastic_free_fall import run_stochastic_si
 from simulators.physics_chaotic.logistic_map import run_logistic_map
 from simulators.biological_agents_minimal.agent_simulator import run_biological_simulator
 from simulators.ocean_column_vertical.ocean_simulator import run_ocean_simulator
+from simulators.whole_ocean_liquid.whole_ocean_simulator import run_whole_ocean_simulator
 
 def main():
     parser = argparse.ArgumentParser(description="SimulateDAI: World Generator")
-    parser.add_argument("--type", choices=["deterministic", "stochastic", "chaotic", "biological", "ocean"], default="deterministic", help="Type of world to simulate")
+    parser.add_argument("--type", choices=["deterministic", "stochastic", "chaotic", "biological", "ocean", "whole_ocean"], default="deterministic", help="Type of world to simulate")
 
     # Physics parameters
-    parser.add_argument("--gravity", type=float, default=9.81, help="Gravity constant (deterministic/stochastic)")
-    parser.add_argument("--noise", type=float, default=0.1, help="Noise std (stochastic only)")
+    parser.add_argument("--gravity", type=float, default=9.81, help="Gravity constant")
+    parser.add_argument("--noise", type=float, default=0.1, help="Noise std")
 
     # Chaos parameters
-    parser.add_argument("--r", type=float, default=3.9, help="Control parameter r (chaotic only)")
-    parser.add_argument("--x0", type=float, default=0.5, help="Initial value x0 (chaotic only)")
+    parser.add_argument("--r", type=float, default=3.9, help="Control parameter r")
+    parser.add_argument("--x0", type=float, default=0.5, help="Initial value x0")
 
     # Biological/Ocean parameters
     parser.add_argument("--timesteps", type=int, default=100, help="Number of timesteps")
-    parser.add_argument("--initial_population", type=int, default=10, help="Initial population (biological only)")
-    parser.add_argument("--grid_size", type=int, default=10, help="Grid size (biological only)")
-    parser.add_argument("--regen_rate", type=float, default=0.1, help="Resource regen rate (biological only)")
+    parser.add_argument("--initial_population", type=int, default=10, help="Initial population")
+    parser.add_argument("--grid_size", type=int, default=10, help="Grid size (bio) / Not used for ocean?")
+    parser.add_argument("--regen_rate", type=float, default=0.1, help="Resource regen rate")
 
     # Ocean parameters
-    parser.add_argument("--depth_layers", type=int, default=10, help="Number of depth layers (ocean only)")
+    parser.add_argument("--depth_layers", type=int, default=10, help="Number of depth layers")
     parser.add_argument("--surface_temp", type=float, default=20.0, help="Surface temperature (ocean only)")
     parser.add_argument("--bottom_temp", type=float, default=4.0, help="Bottom temperature (ocean only)")
-    parser.add_argument("--diffusion_rate", type=float, default=0.1, help="Diffusion rate (ocean only)")
+    parser.add_argument("--diffusion_rate", type=float, default=0.1, help="Diffusion rate")
+
+    # Whole Ocean parameters
+    parser.add_argument("--width", type=int, default=5, help="Grid width (whole ocean)")
+    parser.add_argument("--height", type=int, default=5, help="Grid height (whole ocean)")
+    parser.add_argument("--transport_rate", type=float, default=0.05, help="Horizontal transport rate (whole ocean)")
 
     parser.add_argument("--interventions", type=str, default=None, help="Path to JSON file with interventions")
 
     args = parser.parse_args()
 
-    # Load interventions if provided
+    # Load interventions
     interventions = []
     if args.interventions:
         try:
@@ -75,6 +81,19 @@ def main():
             surface_temp=args.surface_temp,
             bottom_temp=args.bottom_temp,
             diffusion_rate=args.diffusion_rate,
+            seed=42,
+            interventions=interventions
+        )
+    elif args.type == "whole_ocean":
+        world_data = run_whole_ocean_simulator(
+            timesteps=args.timesteps,
+            width=args.width,
+            height=args.height,
+            depth_layers=args.depth_layers,
+            surface_temp_base=args.surface_temp,
+            bottom_temp_base=args.bottom_temp,
+            diffusion_rate=args.diffusion_rate,
+            horizontal_transport_rate=args.transport_rate,
             seed=42,
             interventions=interventions
         )
