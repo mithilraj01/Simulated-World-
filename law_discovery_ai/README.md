@@ -9,7 +9,7 @@ It is a tool for generating synthetic physical data for external research system
 ## Purpose
 
 The sole purpose of this repository is to:
-1. Simulate physical worlds (deterministic, stochastic, or chaotic).
+1. Simulate physical worlds (deterministic, stochastic, chaotic, or biological).
 2. Log observations.
 3. Export standardized JSON data.
 
@@ -32,6 +32,14 @@ The sole purpose of this repository is to:
 - No laws or explanations are inferred.
 - Provided for external analysis only.
 
+### Biological Worlds (Minimal)
+- Minimal biological simulation with agents.
+- Agents have energy, age, and simple reproduction rules.
+- Selection is emergent from environmental constraints.
+- No intelligence, goals, or optimization.
+- Used to study discoverability limits under selection and history.
+- **Regime:** Biological (cellular/population scale).
+
 ## Usage
 
 ### Run Deterministic Simulation
@@ -47,6 +55,11 @@ python3 main.py --type stochastic --noise 0.5
 ### Run Chaotic Simulation
 ```bash
 python3 main.py --type chaotic --r 3.9 --x0 0.5 --timesteps 50
+```
+
+### Run Biological Simulation
+```bash
+python3 main.py --type biological --timesteps 100 --initial_population 20 --grid_size 20
 ```
 
 ### Apply Interventions
